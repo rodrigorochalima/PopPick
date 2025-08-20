@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perfil • PopPick</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<header class="app-header"><h1>Perfil</h1><nav><a class="tab-link" href="../index.html">← Início</a></nav></header>
+<main class="container">
+  <section class="card">
+    <h2>Dados do usuário</h2>
+    <div class="profile-row">
+      <img id="avatar" class="avatar" alt="Avatar">
+      <div>
+        <label>Username <input id="username"></label>
+        <label>Email <input id="email"></label>
+        <label>WhatsApp <input id="whatsapp"></label>
+        <div class="row">
+          <button id="save-profile" class="primary">Salvar Perfil</button>
+          <label class="file-btn">Foto <input type="file" id="avatar-file" accept="image/*"></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Estatísticas Individuais</h2>
+    <ul id="stats-individuais" class="stats"></ul>
+    <div class="row">
+      <button id="exportar" title="Exportar CSV">Backup Excel (CSV)</button>
+      <label class="file-btn">Restaurar <input type="file" id="importar-json" accept="application/json"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Mensagens internas</h2>
+    <div class="row">
+      <input id="mensagem-para" placeholder="@usuario destino">
+      <input id="mensagem-conteudo" placeholder="Sugira um conteúdo…">
+      <button id="enviar-msg">Enviar</button>
+    </div>
+    <ul id="inbox" class="inbox"></ul>
+  </section>
+</main>
+<script src="../js/vendor/idb.min.js"></script>
+<script type="module" src="../js/profile.js"></script>
+</body>
+</html>
