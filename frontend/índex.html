@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PopPick</title>
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>PopPick</h1>
+    <nav class="tabs">
+      <button class="tab-btn" data-tab="home">Início</button>
+      <button class="tab-btn" data-tab="disney">Mundo Disney</button>
+      <button class="tab-btn" data-tab="universal">Universal Studios</button>
+      <button class="tab-btn" data-tab="nasa">NASA</button>
+      <a class="tab-link" href="./pages/profile.html">Perfil</a>
+      <a class="tab-link" href="./pages/admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <main id="content" class="grid"></main>
+
+  <template id="card-tpl">
+    <article class="card">
+      <img class="poster" alt="Poster">
+      <div class="card-body">
+        <h3 class="title"></h3>
+        <p class="synopsis"></p>
+        <div class="scores">
+          <span class="badge badge-poppic" title="Nota média POPPIC">POPPIC: <b class="score-poppic">N/A</b></span>
+          <span class="badge" title="TMDB">TMDB: <b class="score-tmdb">N/A</b></span>
+          <span class="badge" title="IMDB">IMDB: <b class="score-imdb">N/A</b></span>
+        </div>
+        <div class="stars" aria-label="Sua nota" role="radiogroup"></div>
+        <div class="actions"><button class="btn assistir">Assistir</button></div>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="watch-dialog">
+    <form method="dialog" id="watch-form">
+      <h3>Registrar exibição</h3>
+      <input type="date" id="watch-date" required>
+      <div class="dialog-actions">
+        <button value="cancel">Cancelar</button>
+        <button value="ok" class="primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./js/vendor/idb.min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
