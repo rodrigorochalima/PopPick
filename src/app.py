@@ -6,27 +6,38 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import requests
 
+from src.config import (
+    DATABASE_URL, SECRET_KEY, TMDB_API_KEY,
+    ADMIN_USER, ADMIN_PASS
+)
+
 # --- app base ---
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
-app.secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
+app.secret_key = SECRET_KEY
 
 # --- banco ---
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///poppic.db")
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, future=True)
 
 # util
-def sha256(s:str)->str: return hashlib.sha256((s or "").encode()).hexdigest()
+def sha256(s:str)->str: 
+    return hashlib.sha256((s or "").encode()).hexdigest()
+
 def re_slug(s:str)->str:
     import re
     return re.sub(r'[^a-z0-9]+','-', (s or "").lower()).strip('-')
 
 def column_exists(conn, table, name):
-    rows = conn.execute(text(f"PRAGMA table_info({table})")).mappings().all()
-    return any(r["name"] == name for r in rows)
+    # PRAGMA funciona em SQLite; em Postgres usaremos migrations no futuro
+    try:
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).mappings().all()
+        return any(r["name"] == name for r in rows)
+    except Exception:
+        return False
 
 def init_db():
+    """Cria tabelas se não existirem, aplica migrações simples e garante o admin inicial."""
     with engine.begin() as conn:
         # users
         conn.execute(text("""
@@ -38,7 +49,8 @@ def init_db():
           role TEXT DEFAULT 'admin'
         );
         """))
-        # migrações seguras (sem quebrar dados)
+
+        # migrações não destrutivas (adiciona colunas se faltarem)
         if not column_exists(conn, "users", "secret_question"):
             conn.execute(text("ALTER TABLE users ADD COLUMN secret_question TEXT"))
         if not column_exists(conn, "users", "secret_answer_hash"):
@@ -69,15 +81,15 @@ def init_db():
         );
         """))
 
-        # 🔐 cria usuário inicial se não existir (hash SHA-256 correto da senha 530431)
-        u = conn.execute(text("SELECT id,password_hash FROM users WHERE username='rodrigo'")).fetchone()
-        if not u:
+        # 🔐 admin inicial (apenas se não houver nenhum usuário)
+        total_users = conn.execute(text("SELECT COUNT(*) AS c FROM users")).fetchone().c
+        if total_users == 0:
             conn.execute(text("""
               INSERT INTO users (username,name,password_hash,role)
-              VALUES ('rodrigo','Administrador POPPIC',:ph,'admin')
-            """), {"ph": sha256("530431")})
+              VALUES (:u,:n,:p,'admin')
+            """), {"u": ADMIN_USER, "n": "Administrador POPPIC", "p": sha256(ADMIN_PASS)})
 
-        # demos
+        # demos (apenas se não existirem)
         if not conn.execute(text("SELECT 1 FROM movies WHERE slug='procurando-nemo-2003'")).fetchone():
             conn.execute(text("""
               INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
@@ -100,13 +112,14 @@ init_db()
 @app.post("/api/auth/login")
 def api_login():
     data = request.get_json(force=True, silent=True) or {}
-    u = (data.get("username") or "").strip()
+    u = (data.get("username") or "").strip().lower()
     p = (data.get("password") or "").strip()
     with engine.begin() as conn:
-        row = conn.execute(text("SELECT id,name,password_hash FROM users WHERE username=:u"), {"u": u}).fetchone()
+        row = conn.execute(text("SELECT id,username,name,password_hash FROM users WHERE lower(username)=:u"),
+                           {"u": u}).fetchone()
         if not row or sha256(p) != row.password_hash:
             return jsonify({"ok": False, "error": "Usuário ou senha inválidos"}), 401
-        session["user"] = {"id": row.id, "name": row.name, "username": u}
+        session["user"] = {"id": row.id, "name": row.name, "username": row.username}
         return jsonify({"ok": True, "user": session["user"]})
 
 @app.post("/api/auth/logout")
@@ -118,9 +131,9 @@ def api_logout():
 @app.post("/api/auth/forgot_start")
 def forgot_start():
     data = request.get_json(force=True, silent=True) or {}
-    u = (data.get("username") or "").strip()
+    u = (data.get("username") or "").strip().lower()
     with engine.begin() as conn:
-        row = conn.execute(text("SELECT secret_question FROM users WHERE username=:u"), {"u": u}).fetchone()
+        row = conn.execute(text("SELECT secret_question FROM users WHERE lower(username)=:u"), {"u": u}).fetchone()
         if not row or not (row.secret_question or "").strip():
             return jsonify({"ok": False, "error": "Usuário não encontrado ou sem pergunta configurada"}), 404
         return jsonify({"ok": True, "question": row.secret_question})
@@ -129,13 +142,13 @@ def forgot_start():
 @app.post("/api/auth/forgot_finish")
 def forgot_finish():
     data = request.get_json(force=True, silent=True) or {}
-    u = (data.get("username") or "").strip()
+    u = (data.get("username") or "").strip().lower()
     a = (data.get("answer") or "").strip()
     newp = (data.get("new_password") or "").strip()
     if len(newp) < 4:
         return jsonify({"ok": False, "error": "Senha muito curta"}), 400
     with engine.begin() as conn:
-        row = conn.execute(text("SELECT id,secret_answer_hash FROM users WHERE username=:u"), {"u": u}).fetchone()
+        row = conn.execute(text("SELECT id,secret_answer_hash FROM users WHERE lower(username)=:u"), {"u": u}).fetchone()
         if not row or not (row.secret_answer_hash or ""):
             return jsonify({"ok": False, "error": "Usuário sem pergunta/resposta configuradas"}), 400
         if sha256(a) != row.secret_answer_hash:
@@ -146,9 +159,7 @@ def forgot_finish():
 
 # -------------------- CONTA (logado) --------------------
 def require_user():
-    if "user" not in session:
-        return None
-    return session["user"]
+    return session.get("user")
 
 # trocar senha (logado)
 @app.post("/api/account/change_password")
@@ -183,8 +194,8 @@ def update_profile():
 
     with engine.begin() as conn:
         # username único
-        exists = conn.execute(text("SELECT 1 FROM users WHERE username=:u AND id<>:id"),
-                              {"u": new_user, "id": user["id"]}).fetchone()
+        exists = conn.execute(text("SELECT 1 FROM users WHERE lower(username)=:u AND id<>:id"),
+                              {"u": new_user.lower(), "id": user["id"]}).fetchone()
         if exists:
             return jsonify({"ok": False, "error":"Esse usuário já existe"}), 400
 
@@ -260,7 +271,6 @@ def api_rate(movie_id):
     return jsonify({"ok": True})
 
 # TMDB poster (opcional)
-TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 @app.get("/api/tmdb/poster/<int:tmdb_id>")
 def api_tmdb_poster(tmdb_id):
     if not TMDB_API_KEY:
@@ -280,7 +290,8 @@ def api_backup():
         movies = [dict(x) for x in conn.execute(text("SELECT * FROM movies")).mappings().all()]
         views = [dict(x) for x in conn.execute(text("SELECT * FROM view_history")).mappings().all()]
     payload = json.dumps({"movies":movies,"view_history":views}, ensure_ascii=False, indent=2)
-    return send_file(BytesIO(payload.encode("utf-8")), mimetype="application/json", as_attachment=True, download_name="poppic_backup.json")
+    return send_file(BytesIO(payload.encode("utf-8")), mimetype="application/json",
+                     as_attachment=True, download_name="poppic_backup.json")
 
 @app.post("/api/admin/restore")
 def api_restore():
