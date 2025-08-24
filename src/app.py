@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from flask_cors import CORS
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY
+from src.config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY
 import requests
 from io import BytesIO
 
