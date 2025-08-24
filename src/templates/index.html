@@ -1,57 +1,66 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!doctype html>
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>POPPIC • Login</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#d4af37">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <script defer src="{{ url_for('static', filename='js/login.js') }}"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <meta name="color-scheme" content="dark light">
 </head>
 <body class="login-body">
-  <main class="login-card">
-    <h1 class="logo">🍿🎬 <strong>POPPIC</strong></h1>
-    <p class="version">{{ version }}</p>
-    <form id="loginForm" class="login-form">
+  <main class="login-card" role="main" aria-labelledby="poppic-title">
+    <header class="login-header">
+      <div class="brand-emoji">🍿🎬</div>
+      <h1 id="poppic-title">POPPIC</h1>
+    </header>
+    <div class="version">v21.2 • mobile retrô</div>
+
+    <form class="login-form" id="loginForm" novalidate autocomplete="off">
       <label>Usuário
-        <input id="username" required placeholder="rodrigo">
+        <input id="user" type="text" placeholder="Seu usuário"
+               autocomplete="off" autocapitalize="none"
+               readonly onfocus="this.removeAttribute('readonly')">
       </label>
+
       <label>Senha
         <div class="password-wrap">
-          <input id="password" type="password" required placeholder="530431">
-          <button type="button" id="togglePass" aria-label="Ver/ocultar senha">👁️</button>
+          <input id="pass" type="password" placeholder="Sua senha"
+                 autocomplete="new-password"
+                 readonly onfocus="this.removeAttribute('readonly')">
+          <button type="button" id="togglePw" class="ghost" aria-label="Mostrar/ocultar senha">👁️</button>
         </div>
       </label>
-      <button class="primary" type="submit">Entrar</button>
-      <button class="ghost" type="button" id="forgotBtn">Esqueci a senha</button>
+
+      <div class="form-actions">
+        <button type="submit">Entrar</button>
+        <button type="button" id="forgotBtn" class="ghost">Esqueci a senha</button>
+      </div>
     </form>
   </main>
 
-  <!-- Recuperar senha -->
-  <dialog id="forgotDlg" class="modal">
-    <form method="dialog" class="modal-inner" id="forgotForm">
-      <h3>Recuperar senha</h3>
-      <div id="forgotStep1">
-        <label>Usuário <input id="fUser" required></label>
-        <button class="primary" id="askQuestion">Continuar</button>
+  <!-- Recuperação -->
+  <dialog class="modal light" id="forgotModal">
+    <div class="modal-inner">
+      <h3 class="modal-title">🔑 Recuperar senha</h3>
+      <label>Usuário
+        <input id="fUser" type="text" placeholder="Seu usuário" autocapitalize="none">
+      </label>
+      <div id="fStep2" style="display:none">
+        <div id="fQuestion" class="hint"></div>
+        <label>Resposta
+          <input id="fAnswer" type="text" placeholder="Sua resposta">
+        </label>
+        <label>Nova senha
+          <input id="fNew" type="password" placeholder="Defina a nova senha">
+        </label>
       </div>
-      <div id="forgotStep2" class="hidden">
-        <p id="secretQuestion"></p>
-        <label>Resposta <input id="secretAnswer" required></label>
-        <label>Nova senha <input id="newPassword" type="password" required></label>
-        <menu class="modal-actions">
-          <button class="ghost" value="cancel">Cancelar</button>
-          <button class="primary" id="doReset">Salvar nova senha</button>
-        </menu>
+      <div class="modal-actions">
+        <button class="ghost" id="fCancel">Fechar</button>
+        <button id="fNext">Continuar</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
-    }
-  </script>
+  <script src="/static/js/login.js" defer></script>
 </body>
 </html>
