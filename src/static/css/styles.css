@@ -1,0 +1,40 @@
+:root{ --gold:#d4af37; --bg:#0f0f10; --card:#18181b; --text:#f6f6f6; --muted:#a1a1aa; --danger:#c0392b }
+*{ box-sizing:border-box } html,body{ margin:0; padding:0; background:#0b0b0c; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,system-ui,sans-serif }
+.logo{ font-weight:800; letter-spacing:1px } .version{ font-size:.85rem; color:var(--muted) }
+
+/* Login */
+.login-body{ display:grid; place-items:center; min-height:100dvh; background:radial-gradient(60% 40% at 50% 30%, rgba(212,175,55,.15), transparent 60%) }
+.login-card{ width:min(92%,420px); background:var(--card); border:1px solid #222; border-radius:16px; padding:28px; box-shadow:0 10px 30px rgba(0,0,0,.35) }
+.login-form{ display:grid; gap:10px }
+.login-form input{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2a2a2f; background:#121214; color:var(--text) }
+.password-wrap{ display:flex; gap:8px; align-items:center }
+.password-wrap input{ flex:1 } .password-wrap button{ padding:10px 12px }
+.primary{ background:var(--gold); color:#111; border:0; padding:12px 14px; border-radius:10px; font-weight:700; cursor:pointer }
+.ghost{ background:transparent; color:var(--text); border:1px solid #2d2d32; padding:10px 12px; border-radius:10px; cursor:pointer }
+.danger{ background:transparent; color:#fff; border:1px solid var(--danger); padding:10px 12px; border-radius:10px; cursor:pointer }
+
+/* App */
+.app-header{ display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #1e1e22; position:sticky; top:0; background:rgba(15,15,16,.8); backdrop-filter:blur(6px) }
+.brand{ display:flex; align-items:center; gap:12px } .top-actions{ display:flex; gap:10px; align-items:center } .user{ color:var(--muted) }
+.app-main{ padding:16px; display:grid; gap:16px } .toolbar{ display:grid; gap:12px } .tabs{ display:flex; gap:8px }
+.tab{ background:#141417; border:1px solid #26262b; color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer } .tab.active{ outline:2px solid var(--gold) }
+.filters{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap }
+.chip{ border:1px solid #2b2b30; padding:8px 10px; border-radius:999px; background:#111114; cursor:pointer } .chip.active{ border-color:var(--gold) }
+.search-group{ display:flex; gap:8px; align-items:center } .search-group input{ padding:10px 12px; border-radius:10px; border:1px solid #2a2a2f; background:#121214; color:var(--text) }
+
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px }
+.card{ background:#141417; border:1px solid #2a2a2f; border-radius:14px; overflow:hidden }
+.movie{ position:relative } .movie .thumb{ width:100%; aspect-ratio:2/3; object-fit:cover; background:#0e0e10 }
+.movie .meta{ padding:10px; display:grid; gap:6px } .movie .title{ font-weight:700 } .meta small{ color:var(--muted) }
+.badge{ position:absolute; top:8px; left:8px; background:rgba(0,0,0,.6); padding:4px 6px; border-radius:6px; border:1px solid #333 }
+.count{ position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,.6); padding:4px 6px; border-radius:6px; border:1px solid #333 }
+.gold-border{ outline:3px solid var(--gold); outline-offset:-3px }
+
+.rating{ display:flex; gap:4px; flex-wrap:wrap; align-items:center } .star{ cursor:pointer; font-size:18px } .star.disabled{ opacity:.4; pointer-events:none }
+.hidden{ display:none }
+
+.modal::backdrop{ background:rgba(0,0,0,.6) } .modal{ border:1px solid #333; border-radius:12px; max-width:560px; width:90vw; background:#141417; color:var(--text) }
+.modal-inner{ padding:16px; display:grid; gap:12px }
+
+.admin-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px } .stats{ margin:0; padding-left:16px }
+.file input{ display:none } .file span{ cursor:pointer }
