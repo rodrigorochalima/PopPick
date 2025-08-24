@@ -1,58 +1,64 @@
-(async function(){
-  const form = document.getElementById('loginForm');
-  const toggle = document.getElementById('togglePass');
-  const pass = document.getElementById('password');
+(function(){
+  const F = document.getElementById('loginForm');
+  const U = document.getElementById('user');
+  const P = document.getElementById('pass');
+  const T = document.getElementById('togglePw');
   const forgotBtn = document.getElementById('forgotBtn');
-  const dlg = document.getElementById('forgotDlg');
-  const askBtn = document.getElementById('askQuestion');
-  const doReset = document.getElementById('doReset');
 
-  if (toggle) toggle.addEventListener('click', () => {
-    pass.type = pass.type === 'password' ? 'text' : 'password';
+  // mostrar/ocultar senha
+  T.addEventListener('click', ()=>{
+    P.type = P.type === 'password' ? 'text' : 'password';
   });
 
-  if (form) form.addEventListener('submit', async (e) => {
+  F.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value.trim();
+    const username = (U.value||'').trim();
+    const password = (P.value||'').trim();
+    if(!username || !password) return alert('Preencha usuário e senha.');
+
     const r = await fetch('/api/auth/login', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ username, password })
     });
-    const data = await r.json();
-    if (!data.ok) return alert(data.error || 'Falha no login');
+    const d = await r.json();
+    if(!d.ok) return alert(d.error || 'Erro de login');
     location.href = '/app';
   });
 
-  if (forgotBtn) forgotBtn.addEventListener('click', ()=> dlg.showModal());
+  // recuperação de senha
+  const dlg = document.getElementById('forgotModal');
+  const fUser = document.getElementById('fUser');
+  const fStep2 = document.getElementById('fStep2');
+  const fQuestion = document.getElementById('fQuestion');
+  const fAnswer = document.getElementById('fAnswer');
+  const fNew = document.getElementById('fNew');
+  document.getElementById('fCancel').onclick = ()=> dlg.close();
+  forgotBtn.onclick = ()=>{ fUser.value=''; fStep2.style.display='none'; dlg.showModal(); };
 
-  if (askBtn) askBtn.addEventListener('click', async (e)=>{
-    e.preventDefault();
-    const u = document.getElementById('fUser').value.trim();
-    const r = await fetch('/api/auth/forgot_start', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username:u})
-    });
-    const data = await r.json();
-    if (!data.ok) return alert(data.error || 'Usuário não encontrado');
-    document.getElementById('secretQuestion').textContent = 'Pergunta: ' + data.question;
-    document.getElementById('forgotStep1').classList.add('hidden');
-    document.getElementById('forgotStep2').classList.remove('hidden');
-  });
-
-  if (doReset) doReset.addEventListener('click', async (e)=>{
-    e.preventDefault();
-    const u = document.getElementById('fUser').value.trim();
-    const answer = document.getElementById('secretAnswer').value.trim();
-    const newp = document.getElementById('newPassword').value.trim();
-    const r = await fetch('/api/auth/forgot_finish', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username:u, answer, new_password:newp})
-    });
-    const data = await r.json();
-    if (!data.ok) return alert(data.error || 'Não foi possível redefinir');
-    alert('Senha alterada. Faça login.');
-    dlg.close();
-  });
+  document.getElementById('fNext').onclick = async ()=>{
+    if (fStep2.style.display==='none'){
+      const r = await fetch('/api/auth/forgot_start', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username: (fUser.value||'').trim() })
+      });
+      const d = await r.json();
+      if(!d.ok) return alert(d.error || 'Usuário não encontrado');
+      fQuestion.textContent = d.question;
+      fStep2.style.display = '';
+    } else {
+      const payload = {
+        username: (fUser.value||'').trim(),
+        answer: (fAnswer.value||'').trim(),
+        new_password: (fNew.value||'').trim()
+      };
+      const r = await fetch('/api/auth/forgot_finish', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const d = await r.json();
+      if(!d.ok) return alert(d.error || 'Erro');
+      alert('Senha alterada. Faça login.');
+      dlg.close();
+    }
+  };
 })();
