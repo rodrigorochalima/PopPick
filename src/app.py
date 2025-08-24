@@ -1,111 +1,136 @@
-import os, json, datetime
+import os, json, datetime, hashlib
+from io import BytesIO
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
 from flask_cors import CORS
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from src.config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY, ADMIN_USER, ADMIN_PASS
+
+# ⚠️ IMPORTA da config DENTRO de src
+from src.config import (
+    DATABASE_URL, SECRET_KEY, TMDB_API_KEY,
+    ADMIN_USER, ADMIN_PASS
+)
 import requests
-from io import BytesIO
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-CORS(app)
 app.secret_key = SECRET_KEY
+CORS(app)
 
+# --- DB ---
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, future=True)
 
+def re_slug(s:str)->str:
+    import re
+    return re.sub(r'[^a-z0-9]+','-', s.lower()).strip('-')
+
 def init_db():
+    """Cria tabelas e usuário admin inicial (se o banco estiver vazio)."""
     with engine.begin() as conn:
+        # users
         conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          username TEXT UNIQUE,
-          name TEXT NOT NULL,
-          password_hash TEXT NOT NULL
-        );
+            CREATE TABLE IF NOT EXISTS users (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              username TEXT UNIQUE,
+              name TEXT NOT NULL,
+              password_hash TEXT NOT NULL,
+              role TEXT DEFAULT 'admin'
+            );
         """))
+
+        # movies
         conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS movies (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          slug TEXT UNIQUE,
-          title TEXT NOT NULL,
-          year INTEGER,
-          studio TEXT,
-          tmdb_id INTEGER,
-          watched INTEGER DEFAULT 0,
-          views INTEGER DEFAULT 0,
-          rating INTEGER
-        );
+            CREATE TABLE IF NOT EXISTS movies (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              slug TEXT UNIQUE,
+              title TEXT NOT NULL,
+              year INTEGER,
+              studio TEXT,
+              tmdb_id INTEGER,
+              watched INTEGER DEFAULT 0,
+              views INTEGER DEFAULT 0,
+              rating INTEGER
+            );
         """))
+
+        # view_history
         conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS view_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          movie_id INTEGER,
-          watched_at TEXT,
-          FOREIGN KEY(movie_id) REFERENCES movies(id)
-        );
+            CREATE TABLE IF NOT EXISTS view_history (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              movie_id INTEGER,
+              watched_at TEXT,
+              FOREIGN KEY(movie_id) REFERENCES movies(id)
+            );
         """))
-        user = conn.execute(text("SELECT id FROM users WHERE username='rodrigo'")).fetchone()
-        if not user:
+
+        # 🔹 Bootstrap: se não houver NENHUM usuário, cria o admin a partir do Environment
+        total = conn.execute(text("SELECT COUNT(*) AS c FROM users")).fetchone().c
+        if total == 0:
+            ph = hashlib.sha256((ADMIN_PASS or "").encode()).hexdigest()
+            conn.execute(
+                text("INSERT INTO users (username, name, password_hash, role) VALUES (:u,:n,:p,'admin')"),
+                {"u": ADMIN_USER, "n": "Administrador POPPIC", "p": ph}
+            )
+
+        # dados de exemplo (Nemo, Jurassic, Apollo 11) se não existirem
+        if not conn.execute(text("SELECT 1 FROM movies WHERE slug='procurando-nemo-2003'")).fetchone():
             conn.execute(text("""
-              INSERT INTO users (username, name, password_hash)
-              VALUES ('rodrigo','Rodrigo Rocha Lima','bd6523840ddb736ee5df08c6977c5da5')
+                INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
+                VALUES ('procurando-nemo-2003','Procurando Nemo',2003,'disney',12,1,4,9)
             """))
-        nemo = conn.execute(text("SELECT id FROM movies WHERE slug='procurando-nemo-2003'")).fetchone()
-        if not nemo:
+        if not conn.execute(text("SELECT 1 FROM movies WHERE slug='apollo-11-2019'")).fetchone():
             conn.execute(text("""
-              INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
-              VALUES ('procurando-nemo-2003','Procurando Nemo',2003,'disney',12,1,4,9)
+                INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
+                VALUES ('apollo-11-2019','Apollo 11',2019,'nasa',504172,0,0,NULL)
             """))
-        ap11 = conn.execute(text("SELECT id FROM movies WHERE slug='apollo-11-2019'")).fetchone()
-        if not ap11:
+        if not conn.execute(text("SELECT 1 FROM movies WHERE slug='jurassic-park-1993'")).fetchone():
             conn.execute(text("""
-              INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
-              VALUES ('apollo-11-2019','Apollo 11',2019,'nasa',504172,0,0,NULL)
-            """))
-        jp = conn.execute(text("SELECT id FROM movies WHERE slug='jurassic-park-1993'")).fetchone()
-        if not jp:
-            conn.execute(text("""
-              INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
-              VALUES ('jurassic-park-1993','Jurassic Park',1993,'universal',329,0,0,NULL)
+                INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
+                VALUES ('jurassic-park-1993','Jurassic Park',1993,'universal',329,0,0,NULL)
             """))
 
+# chama inicialização
 init_db()
 
+# --- AUTH ---
 @app.post("/api/auth/login")
 def api_login():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True, silent=True) or {}
     u = (data.get("username") or "").strip()
     p = (data.get("password") or "").strip()
     with engine.begin() as conn:
-        row = conn.execute(text("SELECT id,name,password_hash FROM users WHERE username=:u"), {"u":u}).fetchone()
+        row = conn.execute(
+            text("SELECT id,name,password_hash FROM users WHERE username=:u"),
+            {"u": u}
+        ).fetchone()
         if not row:
-            return jsonify({"ok":False,"error":"Usuário ou senha inválidos"}), 401
-        import hashlib
+            return jsonify({"ok": False, "error": "Usuário ou senha inválidos"}), 401
         if hashlib.sha256(p.encode()).hexdigest() != row.password_hash:
-            return jsonify({"ok":False,"error":"Usuário ou senha inválidos"}), 401
-        session["user"] = {"id":row.id, "name":row.name, "username":u}
-        return jsonify({"ok":True,"user":session["user"]})
+            return jsonify({"ok": False, "error": "Usuário ou senha inválidos"}), 401
+        session["user"] = {"id": row.id, "name": row.name, "username": u}
+        return jsonify({"ok": True, "user": session["user"]})
 
 @app.post("/api/auth/logout")
 def api_logout():
     session.clear()
-    return jsonify({"ok":True})
+    return jsonify({"ok": True})
 
+# --- MOVIES API ---
 @app.get("/api/movies")
 def api_movies():
     q = (request.args.get("q") or "").lower()
-    f = (request.args.get("filter") or "todos")
+    f = (request.args.get("filter") or "todos").lower()
     with engine.begin() as conn:
         rows = conn.execute(text("SELECT * FROM movies ORDER BY title ASC")).mappings().all()
         items = []
         for r in rows:
-            if f != "todos" and r["studio"] != f: 
+            if f != "todos" and (r["studio"] or "") != f:
                 continue
-            if q and (q not in r["title"].lower()):
+            if q and (q not in (r["title"] or "").lower()):
                 continue
             items.append(dict(r))
-        return jsonify({"ok":True, "items":items})
+        return jsonify({"ok": True, "items": items})
 
 @app.post("/api/movies")
 def api_add_movie():
@@ -120,17 +145,13 @@ def api_add_movie():
           INSERT INTO movies (slug,title,year,studio,tmdb_id,watched,views,rating)
           VALUES (:slug,:title,:year,:studio,:tmdb,0,0,NULL)
         """), {"slug":slug,"title":title,"year":year,"studio":studio,"tmdb":tmdb_id})
-    return jsonify({"ok":True})
-
-def re_slug(s:str)->str:
-    import re
-    return re.sub(r'[^a-z0-9]+','-', s.lower()).strip('-')
+    return jsonify({"ok": True})
 
 @app.post("/api/movies/<int:movie_id>/toggle_watch")
 def api_toggle_watch(movie_id):
     with engine.begin() as conn:
         r = conn.execute(text("SELECT watched,views FROM movies WHERE id=:id"),{"id":movie_id}).fetchone()
-        if not r: return jsonify({"ok":False}),404
+        if not r: return jsonify({"ok": False}), 404
         watched = 0 if r.watched else 1
         views = r.views + 1 if watched else max(0, r.views-1)
         conn.execute(text("UPDATE movies SET watched=:w, views=:v WHERE id=:id"),
@@ -138,7 +159,7 @@ def api_toggle_watch(movie_id):
         if watched:
             conn.execute(text("INSERT INTO view_history (movie_id,watched_at) VALUES (:id,:dt)"),
                          {"id":movie_id,"dt":datetime.datetime.utcnow().isoformat()})
-    return jsonify({"ok":True})
+    return jsonify({"ok": True})
 
 @app.post("/api/movies/<int:movie_id>/rate")
 def api_rate(movie_id):
@@ -146,26 +167,28 @@ def api_rate(movie_id):
     rating = int(data.get("rating") or 0)
     with engine.begin() as conn:
         r = conn.execute(text("SELECT watched FROM movies WHERE id=:id"),{"id":movie_id}).fetchone()
-        if not r: return jsonify({"ok":False}),404
+        if not r: return jsonify({"ok": False}), 404
         if not r.watched:
-            return jsonify({"ok":False,"error":"Avaliação só após assistir"}), 400
+            return jsonify({"ok": False, "error":"Avaliação só após assistir"}), 400
         conn.execute(text("UPDATE movies SET rating=:rt WHERE id=:id"),{"rt":rating,"id":movie_id})
-    return jsonify({"ok":True})
+    return jsonify({"ok": True})
 
+# --- TMDB poster proxy ---
 @app.get("/api/tmdb/poster/<int:tmdb_id>")
 def api_tmdb_poster(tmdb_id):
     if not TMDB_API_KEY:
-        return jsonify({"ok":False,"error":"TMDB_API_KEY não configurada"}), 400
+        return jsonify({"ok": False, "error":"TMDB_API_KEY não configurada"}), 400
     r = requests.get(f"https://api.themoviedb.org/3/movie/{tmdb_id}",
                      params={"api_key":TMDB_API_KEY, "language":"pt-BR"})
     if r.status_code != 200:
-        return jsonify({"ok":False,"error":"TMDB erro"}), 502
+        return jsonify({"ok": False, "error":"TMDB erro"}), 502
     data = r.json()
     path = data.get("poster_path")
     if not path:
-        return jsonify({"ok":True,"url":None})
-    return jsonify({"ok":True,"url":"https://image.tmdb.org/t/p/w342"+path})
+        return jsonify({"ok": True, "url": None})
+    return jsonify({"ok": True, "url":"https://image.tmdb.org/t/p/w342"+path})
 
+# --- Backup/Restore ---
 @app.get("/api/admin/backup")
 def api_backup():
     with engine.begin() as conn:
@@ -177,7 +200,7 @@ def api_backup():
 @app.post("/api/admin/restore")
 def api_restore():
     payload = request.get_json(force=True, silent=True)
-    if not payload: return jsonify({"ok":False,"error":"JSON inválido"}), 400
+    if not payload: return jsonify({"ok": False, "error":"JSON inválido"}), 400
     movies = payload.get("movies",[])
     views = payload.get("view_history",[])
     with engine.begin() as conn:
@@ -193,11 +216,12 @@ def api_restore():
               INSERT INTO view_history (id,movie_id,watched_at)
               VALUES (:id,:movie_id,:watched_at)
             """), v)
-    return jsonify({"ok":True})
+    return jsonify({"ok": True})
 
+# --- Páginas ---
 @app.get("/")
 def page_login():
-    if "user" in session: 
+    if "user" in session:
         return redirect(url_for("page_app"))
     return render_template("index.html", version="v21.0")
 
@@ -206,29 +230,8 @@ def page_app():
     if "user" not in session:
         return redirect(url_for("page_login"))
     return render_template("app.html", version="v21.0", user=session["user"])
-# --- ROTA TEMPORÁRIA: criar usuário admin inicial (REMOVER DEPOIS) ---
-@app.get("/init-admin")
-def init_admin():
-    # simples proteção: exige query ?key=SECRET_KEY
-    key = request.args.get("key", "")
-    if key != SECRET_KEY:
-        return "forbidden", 403
 
-    import hashlib
-    username = "rodrigo"
-    name = "Rodrigo Rocha Lima"
-    # sha256 de '530431'
-    password_hash = "bd6523840ddb736ee5df08c6977c5da5"
-
-    with engine.begin() as conn:
-        row = conn.execute(text("SELECT id FROM users WHERE username=:u"), {"u": username}).fetchone()
-        if row:
-            return "ok: usuário já existia", 200
-        conn.execute(
-            text("INSERT INTO users (username, name, password_hash) VALUES (:u,:n,:p)"),
-            {"u": username, "n": name, "p": password_hash},
-        )
-    return "ok: usuário criado", 200
 if __name__ == "__main__":
+    # Se estiver usando gunicorn/waitress no Render, esse bloco não é usado.
     port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
