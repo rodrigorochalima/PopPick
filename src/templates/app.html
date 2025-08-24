@@ -1,69 +1,88 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!doctype html>
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>POPPIC</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#d4af37">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>POPPIC • App</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body class="app-body">
+
+  <!-- Cabeçalho retrô -->
   <header class="app-header">
     <div class="brand">
-      <span class="logo">🍿🎬 <strong>POPPIC</strong></span>
-      <span class="version">{{ version }}</span>
+      <span class="logo">🍿🎬</span>
+      <strong>POPPIC</strong>
+      <span class="version">v21.2</span>
     </div>
-    <nav class="top-actions">
-      <img class="avatar" id="topAvatar" src="{{ user.avatar or '' }}" alt="avatar" onerror="this.style.display='none'"/>
-      <span class="user" title="Usuário logado">{{ user.name }}</span>
+    <div class="top-actions">
+      <img id="topAvatar" class="avatar" alt="avatar" style="display:none">
+      <span class="user">{{ user.name }}</span>
       <button id="accountBtn" class="ghost">Conta</button>
       <button id="backupBtn" class="ghost">Backup</button>
       <button id="restoreBtn" class="ghost">Restore</button>
       <button id="logoutBtn" class="danger">Sair</button>
-    </nav>
+    </div>
   </header>
 
+  <!-- Painel TMDB + filtros (mobile-first) -->
   <section class="toolbar">
-    <input id="search" placeholder="Buscar filme..." />
-    <select id="filter">
-      <option value="todos">Todos</option>
-      <option value="disney">Disney</option>
-      <option value="universal">Universal</option>
-      <option value="nasa">NASA</option>
-    </select>
-
-    <!-- Autocomplete TMDB -->
     <div class="add-box">
-      <input id="tmdbQuery" placeholder="Adicionar filme (TMDB)..." autocomplete="off">
+      <label class="toolbar-title">🔎 Buscar filme no TMDB:</label>
+      <input id="tmdbQuery" type="text" placeholder="Digite o título…">
       <ul id="tmdbResults" class="results"></ul>
+    </div>
+
+    <div>
+      <label class="toolbar-title">🌍 Universo:</label>
       <select id="tmdbStudio">
-        <option value="">Estúdio…</option>
-        <option value="disney">Disney</option>
+        <option value="">Todos</option>
+        <option>universal</option>
+        <option>disney</option>
+        <option>pixar</option>
+        <option>marvel</option>
+        <option>warner</option>
+      </select>
+    </div>
+
+    <div style="flex:1 1 160px">
+      <label class="toolbar-title">Buscar filme…</label>
+      <input id="search" type="text" placeholder="Pesquisar na sua lista">
+    </div>
+
+    <div>
+      <label class="toolbar-title">Filtro:</label>
+      <select id="filter">
+        <option value="todos">Todos</option>
         <option value="universal">Universal</option>
-        <option value="nasa">NASA</option>
+        <option value="disney">Disney</option>
+        <option value="pixar">Pixar</option>
+        <option value="marvel">Marvel</option>
+        <option value="warner">Warner</option>
       </select>
     </div>
   </section>
 
-  <main class="grid3" id="grid" aria-live="polite"></main>
+  <!-- Grade 3 colunas -->
+  <section id="grid" class="grid3" aria-live="polite"></section>
 
+  <!-- Template de card -->
   <template id="cardTpl">
     <article class="card">
       <div class="poster-wrap">
-        <img class="poster" alt="Poster">
+        <img class="poster" alt="poster">
         <span class="tmdb"></span>
       </div>
-      <h4 class="title"></h4>
-      <p class="meta"></p>
+      <h3 class="title"></h3>
+      <div class="meta"></div>
+
       <div class="rating-line">
-        <span class="mine"></span><span class="slash"> / </span><span class="site"></span>
+        <strong class="mine">x</strong> <span>/</span> <span class="site">x</span>
       </div>
+
       <div class="actions">
-        <button class="watchBtn">Assistido</button>
-        <div class="stars" aria-label="Avaliar de 0 a 10">
-          <!-- 10 estrelas -->
+        <button class="watchBtn">Marcar assistido</button>
+        <div class="stars" aria-label="Avaliar">
           <button class="star" data-score="1">★</button>
           <button class="star" data-score="2">★</button>
           <button class="star" data-score="3">★</button>
@@ -79,67 +98,79 @@
     </article>
   </template>
 
-  <!-- Modal conta -->
-  <dialog id="accountModal" class="modal light">
-    <form method="dialog" class="modal-inner" id="accountForm">
-      <h3>Minha conta</h3>
+  <!-- Conta -->
+  <dialog class="modal light" id="accountModal">
+    <div class="modal-inner">
+      <h3 class="modal-title">👤 Minha conta</h3>
 
-      <div class="avatar-row">
-        <img id="accAvatarPreview" class="avatar big" alt="avatar" onerror="this.style.display='none'"/>
-        <input type="file" id="avatarFile" accept="image/*">
-        <button id="cropOpen" class="ghost" type="button">Ajustar recorte</button>
+      <div style="display:flex;gap:12px;align-items:center">
+        <img id="accAvatarPreview" class="avatar big" style="display:none" alt="avatar">
+        <div>
+          <input id="avatarFile" type="file" accept="image/*">
+          <div style="margin-top:6px">
+            <button id="cropOpen" class="ghost">Ajustar avatar</button>
+          </div>
+        </div>
       </div>
 
-      <label>Nome <input name="name" id="accName" required /></label>
-      <label>Usuário <input name="username" id="accUser" required /></label>
+      <label>Nome
+        <input id="accName" type="text" placeholder="Seu nome">
+      </label>
+      <label>Usuário
+        <input id="accUser" type="text" placeholder="Seu usuário" autocapitalize="none">
+      </label>
 
       <label>Pergunta secreta
         <select id="accQ">
-          <option value="">Selecione…</option>
+          <option value="">— selecionar —</option>
           <option>Nome do seu primeiro animal de estimação?</option>
-          <option>Nome da sua escola primária?</option>
-          <option>Em que cidade você nasceu?</option>
-          <option>Qual é o time do coração?</option>
-          <option>Nome do seu herói de infância?</option>
-          <option>Profissão dos seus pais?</option>
-          <option>Primeiro carro?</option>
-          <option>Livro favorito?</option>
-          <option>Filme favorito?</option>
+          <option>Cidade onde nasceu sua mãe?</option>
+          <option>Seu herói favorito do cinema?</option>
+          <option>Primeiro professor que marcou sua vida?</option>
+          <option>Seu filme preferido na infância?</option>
+          <option>Nome do seu melhor amigo de infância?</option>
+          <option>Marca do seu primeiro carro?</option>
+          <option>Time do coração?</option>
           <option>Comida favorita?</option>
+          <option>Primeiro show que você foi?</option>
         </select>
       </label>
-      <label>Resposta secreta <input name="a" id="accA" /></label>
 
-      <fieldset class="pw-box">
-        <legend>Trocar senha (opcional)</legend>
-        <label>Senha atual <input type="password" id="oldPass" /></label>
-        <label>Nova senha <input type="password" id="newPass" /></label>
-      </fieldset>
+      <label>Resposta secreta
+        <input id="accA" type="text" placeholder="Sua resposta">
+      </label>
 
-      <menu class="modal-actions">
-        <button value="cancel" class="ghost">Fechar</button>
-        <button id="saveAccount" class="primary" value="default">Salvar</button>
-      </menu>
-    </form>
-  </dialog>
+      <div class="pw-box">
+        <strong>Trocar senha (opcional)</strong>
+        <label>Senha atual
+          <input id="oldPass" type="password" placeholder="Senha atual">
+        </label>
+        <label>Nova senha
+          <input id="newPass" type="password" placeholder="Nova senha">
+        </label>
+      </div>
 
-  <!-- Modal de recorte simples -->
-  <dialog id="cropModal" class="modal light">
-    <div class="modal-inner">
-      <h3>Ajustar avatar</h3>
-      <canvas id="cropCanvas" width="300" height="300"></canvas>
-      <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1">
-      <menu class="modal-actions">
-        <button class="ghost" id="cropCancel">Cancelar</button>
-        <button class="primary" id="cropSave">Salvar</button>
-      </menu>
+      <div class="modal-actions">
+        <button class="ghost" id="accClose">Fechar</button>
+        <button id="saveAccount">Salvar</button>
+      </div>
     </div>
   </dialog>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
-    }
-  </script>
+  <!-- Cropper simples -->
+  <dialog class="modal" id="cropModal">
+    <div class="modal-inner">
+      <h3 class="modal-title">🖼️ Ajustar avatar</h3>
+      <canvas id="cropCanvas" width="300" height="300"></canvas>
+      <input id="cropZoom" type="range" min="0.5" max="2" step="0.01" value="1">
+      <div class="modal-actions">
+        <button class="ghost" id="cropCancel">Cancelar</button>
+        <button id="cropSave">Salvar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>window.APP_VERSION="{{ version|default('v21.2') }}";</script>
+  <script src="/static/js/app.js" defer></script>
 </body>
 </html>
