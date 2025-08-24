@@ -11,10 +11,12 @@
 </head>
 <body class="login-body">
   <main class="login-card">
-    <h1 class="logo">🍿🎬 POPPIC</h1>
+    <h1 class="logo">🍿🎬 <strong>POPPIC</strong></h1>
     <p class="version">{{ version }}</p>
     <form id="loginForm" class="login-form">
-      <label>Usuário <input id="username" required placeholder="rodrigo"></label>
+      <label>Usuário
+        <input id="username" required placeholder="rodrigo">
+      </label>
       <label>Senha
         <div class="password-wrap">
           <input id="password" type="password" required placeholder="530431">
@@ -26,6 +28,7 @@
     </form>
   </main>
 
+  <!-- Recuperar senha -->
   <dialog id="forgotDlg" class="modal">
     <form method="dialog" class="modal-inner" id="forgotForm">
       <h3>Recuperar senha</h3>
@@ -46,7 +49,9 @@
   </dialog>
 
   <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
+    }
   </script>
 </body>
 </html>
