@@ -16,6 +16,7 @@
       <span class="version">{{ version }}</span>
     </div>
     <nav class="top-actions">
+      <img class="avatar" id="topAvatar" src="{{ user.avatar or '' }}" alt="avatar" onerror="this.style.display='none'"/>
       <span class="user" title="Usuário logado">{{ user.name }}</span>
       <button id="accountBtn" class="ghost">Conta</button>
       <button id="backupBtn" class="ghost">Backup</button>
@@ -32,44 +33,89 @@
       <option value="universal">Universal</option>
       <option value="nasa">NASA</option>
     </select>
-    <button id="shuffleBtn" class="ghost">Sortear</button>
-    <button id="addBtn" class="primary">Adicionar filme</button>
+
+    <!-- Autocomplete TMDB -->
+    <div class="add-box">
+      <input id="tmdbQuery" placeholder="Adicionar filme (TMDB)..." autocomplete="off">
+      <ul id="tmdbResults" class="results"></ul>
+      <select id="tmdbStudio">
+        <option value="">Estúdio…</option>
+        <option value="disney">Disney</option>
+        <option value="universal">Universal</option>
+        <option value="nasa">NASA</option>
+      </select>
+    </div>
   </section>
 
-  <main class="grid" id="grid" aria-live="polite"></main>
+  <main class="grid3" id="grid" aria-live="polite"></main>
 
-  <!-- Modal: adicionar filme -->
-  <dialog id="addModal" class="modal">
-    <form method="dialog" class="modal-inner" id="addForm">
-      <h3>Novo filme</h3>
-      <label>Título <input name="title" id="mTitle" required></label>
-      <label>Ano <input name="year" id="mYear" type="number" required></label>
-      <label>Estúdio
-        <select name="studio" id="mStudio" required>
-          <option value="disney">Disney</option>
-          <option value="universal">Universal</option>
-          <option value="nasa">NASA</option>
-        </select>
-      </label>
-      <label>TMDB ID (opcional) <input name="tmdb" id="mTmdb" type="number"></label>
-      <menu class="modal-actions">
-        <button value="cancel" class="ghost">Cancelar</button>
-        <button class="primary" id="saveMovie">Salvar</button>
-      </menu>
-    </form>
-  </dialog>
+  <template id="cardTpl">
+    <article class="card">
+      <div class="poster-wrap">
+        <img class="poster" alt="Poster">
+        <span class="tmdb"></span>
+      </div>
+      <h4 class="title"></h4>
+      <p class="meta"></p>
+      <div class="rating-line">
+        <span class="mine"></span><span class="slash"> / </span><span class="site"></span>
+      </div>
+      <div class="actions">
+        <button class="watchBtn">Assistido</button>
+        <div class="stars" aria-label="Avaliar de 0 a 10">
+          <!-- 10 estrelas -->
+          <button class="star" data-score="1">★</button>
+          <button class="star" data-score="2">★</button>
+          <button class="star" data-score="3">★</button>
+          <button class="star" data-score="4">★</button>
+          <button class="star" data-score="5">★</button>
+          <button class="star" data-score="6">★</button>
+          <button class="star" data-score="7">★</button>
+          <button class="star" data-score="8">★</button>
+          <button class="star" data-score="9">★</button>
+          <button class="star" data-score="10">★</button>
+        </div>
+      </div>
+    </article>
+  </template>
 
-  <!-- Modal: conta -->
-  <dialog id="accountModal" class="modal">
+  <!-- Modal conta -->
+  <dialog id="accountModal" class="modal light">
     <form method="dialog" class="modal-inner" id="accountForm">
       <h3>Minha conta</h3>
+
+      <div class="avatar-row">
+        <img id="accAvatarPreview" class="avatar big" alt="avatar" onerror="this.style.display='none'"/>
+        <input type="file" id="avatarFile" accept="image/*">
+        <button id="cropOpen" class="ghost" type="button">Ajustar recorte</button>
+      </div>
+
       <label>Nome <input name="name" id="accName" required /></label>
       <label>Usuário <input name="username" id="accUser" required /></label>
-      <label>Pergunta secreta (opcional) <input name="q" id="accQ" /></label>
-      <label>Resposta secreta (opcional) <input name="a" id="accA" /></label>
-      <hr/>
-      <label>Senha atual <input type="password" id="oldPass" /></label>
-      <label>Nova senha <input type="password" id="newPass" /></label>
+
+      <label>Pergunta secreta
+        <select id="accQ">
+          <option value="">Selecione…</option>
+          <option>Nome do seu primeiro animal de estimação?</option>
+          <option>Nome da sua escola primária?</option>
+          <option>Em que cidade você nasceu?</option>
+          <option>Qual é o time do coração?</option>
+          <option>Nome do seu herói de infância?</option>
+          <option>Profissão dos seus pais?</option>
+          <option>Primeiro carro?</option>
+          <option>Livro favorito?</option>
+          <option>Filme favorito?</option>
+          <option>Comida favorita?</option>
+        </select>
+      </label>
+      <label>Resposta secreta <input name="a" id="accA" /></label>
+
+      <fieldset class="pw-box">
+        <legend>Trocar senha (opcional)</legend>
+        <label>Senha atual <input type="password" id="oldPass" /></label>
+        <label>Nova senha <input type="password" id="newPass" /></label>
+      </fieldset>
+
       <menu class="modal-actions">
         <button value="cancel" class="ghost">Fechar</button>
         <button id="saveAccount" class="primary" value="default">Salvar</button>
@@ -77,31 +123,18 @@
     </form>
   </dialog>
 
-  <template id="cardTpl">
-    <article class="card">
-      <div class="poster-wrap">
-        <img class="poster" alt="Poster">
-        <span class="badge views"></span>
-      </div>
-      <h4 class="title"></h4>
-      <p class="meta"></p>
-      <div class="actions">
-        <button class="watchBtn">Assistido</button>
-        <div class="rateBox">
-          <button class="rateBtn" data-score="1">1</button>
-          <button class="rateBtn" data-score="2">2</button>
-          <button class="rateBtn" data-score="3">3</button>
-          <button class="rateBtn" data-score="4">4</button>
-          <button class="rateBtn" data-score="5">5</button>
-          <button class="rateBtn" data-score="6">6</button>
-          <button class="rateBtn" data-score="7">7</button>
-          <button class="rateBtn" data-score="8">8</button>
-          <button class="rateBtn" data-score="9">9</button>
-          <button class="rateBtn" data-score="10">10</button>
-        </div>
-      </div>
-    </article>
-  </template>
+  <!-- Modal de recorte simples -->
+  <dialog id="cropModal" class="modal light">
+    <div class="modal-inner">
+      <h3>Ajustar avatar</h3>
+      <canvas id="cropCanvas" width="300" height="300"></canvas>
+      <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1">
+      <menu class="modal-actions">
+        <button class="ghost" id="cropCancel">Cancelar</button>
+        <button class="primary" id="cropSave">Salvar</button>
+      </menu>
+    </div>
+  </dialog>
 
   <script>
     if ('serviceWorker' in navigator) {
