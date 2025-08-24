@@ -10,11 +10,7 @@
 
   <!-- Cabeçalho retrô -->
   <header class="app-header">
-    <div class="brand">
-      <span class="logo">🍿🎬</span>
-      <strong>POPPIC</strong>
-      <span class="version">v21.2</span>
-    </div>
+    <div class="brand"><span class="logo">🍿🎬</span><strong>POPPIC</strong><span class="version">v21.3</span></div>
     <div class="top-actions">
       <img id="topAvatar" class="avatar" alt="avatar" style="display:none">
       <span class="user">{{ user.name }}</span>
@@ -25,7 +21,7 @@
     </div>
   </header>
 
-  <!-- Painel TMDB + filtros (mobile-first) -->
+  <!-- Painel TMDB + filtros -->
   <section class="toolbar">
     <div class="add-box">
       <label class="toolbar-title">🔎 Buscar filme no TMDB:</label>
@@ -36,12 +32,8 @@
     <div>
       <label class="toolbar-title">🌍 Universo:</label>
       <select id="tmdbStudio">
-        <option value="">Todos</option>
-        <option>universal</option>
-        <option>disney</option>
-        <option>pixar</option>
-        <option>marvel</option>
-        <option>warner</option>
+        <option value="">Todos</option><option>universal</option><option>disney</option>
+        <option>pixar</option><option>marvel</option><option>warner</option>
       </select>
     </div>
 
@@ -53,12 +45,9 @@
     <div>
       <label class="toolbar-title">Filtro:</label>
       <select id="filter">
-        <option value="todos">Todos</option>
-        <option value="universal">Universal</option>
-        <option value="disney">Disney</option>
-        <option value="pixar">Pixar</option>
-        <option value="marvel">Marvel</option>
-        <option value="warner">Warner</option>
+        <option value="todos">Todos</option><option value="universal">Universal</option>
+        <option value="disney">Disney</option><option value="pixar">Pixar</option>
+        <option value="marvel">Marvel</option><option value="warner">Warner</option>
       </select>
     </div>
   </section>
@@ -66,11 +55,12 @@
   <!-- Grade 3 colunas -->
   <section id="grid" class="grid3" aria-live="polite"></section>
 
-  <!-- Template de card -->
+  <!-- Template do card -->
   <template id="cardTpl">
     <article class="card">
       <div class="poster-wrap">
         <img class="poster" alt="poster">
+        <button class="editTmdb" title="Corrigir ligação TMDB">🛠</button>
         <span class="tmdb"></span>
       </div>
       <h3 class="title"></h3>
@@ -78,48 +68,35 @@
 
       <div class="rating-line">
         <strong class="mine">x</strong> <span>/</span> <span class="site">x</span>
+        <small class="watched-mini"></small>
       </div>
 
       <div class="actions">
         <button class="watchBtn">Marcar assistido</button>
         <div class="stars" aria-label="Avaliar">
-          <button class="star" data-score="1">★</button>
-          <button class="star" data-score="2">★</button>
-          <button class="star" data-score="3">★</button>
-          <button class="star" data-score="4">★</button>
-          <button class="star" data-score="5">★</button>
-          <button class="star" data-score="6">★</button>
-          <button class="star" data-score="7">★</button>
-          <button class="star" data-score="8">★</button>
-          <button class="star" data-score="9">★</button>
-          <button class="star" data-score="10">★</button>
+          <button class="star" data-score="1">★</button><button class="star" data-score="2">★</button>
+          <button class="star" data-score="3">★</button><button class="star" data-score="4">★</button>
+          <button class="star" data-score="5">★</button><button class="star" data-score="6">★</button>
+          <button class="star" data-score="7">★</button><button class="star" data-score="8">★</button>
+          <button class="star" data-score="9">★</button><button class="star" data-score="10">★</button>
         </div>
       </div>
     </article>
   </template>
 
-  <!-- Conta -->
+  <!-- Minha conta -->
   <dialog class="modal light" id="accountModal">
     <div class="modal-inner">
       <h3 class="modal-title">👤 Minha conta</h3>
-
       <div style="display:flex;gap:12px;align-items:center">
         <img id="accAvatarPreview" class="avatar big" style="display:none" alt="avatar">
         <div>
           <input id="avatarFile" type="file" accept="image/*">
-          <div style="margin-top:6px">
-            <button id="cropOpen" class="ghost">Ajustar avatar</button>
-          </div>
+          <div style="margin-top:6px"><button id="cropOpen" class="ghost">Ajustar avatar</button></div>
         </div>
       </div>
-
-      <label>Nome
-        <input id="accName" type="text" placeholder="Seu nome">
-      </label>
-      <label>Usuário
-        <input id="accUser" type="text" placeholder="Seu usuário" autocapitalize="none">
-      </label>
-
+      <label>Nome <input id="accName" type="text"></label>
+      <label>Usuário <input id="accUser" type="text" autocapitalize="none"></label>
       <label>Pergunta secreta
         <select id="accQ">
           <option value="">— selecionar —</option>
@@ -135,42 +112,57 @@
           <option>Primeiro show que você foi?</option>
         </select>
       </label>
-
-      <label>Resposta secreta
-        <input id="accA" type="text" placeholder="Sua resposta">
-      </label>
-
+      <label>Resposta secreta <input id="accA" type="text"></label>
       <div class="pw-box">
         <strong>Trocar senha (opcional)</strong>
-        <label>Senha atual
-          <input id="oldPass" type="password" placeholder="Senha atual">
-        </label>
-        <label>Nova senha
-          <input id="newPass" type="password" placeholder="Nova senha">
-        </label>
+        <label>Senha atual <input id="oldPass" type="password"></label>
+        <label>Nova senha  <input id="newPass" type="password"></label>
       </div>
-
-      <div class="modal-actions">
-        <button class="ghost" id="accClose">Fechar</button>
-        <button id="saveAccount">Salvar</button>
-      </div>
+      <div class="modal-actions"><button class="ghost" id="accClose">Fechar</button><button id="saveAccount">Salvar</button></div>
     </div>
   </dialog>
 
-  <!-- Cropper simples -->
+  <!-- Cropper -->
   <dialog class="modal" id="cropModal">
     <div class="modal-inner">
       <h3 class="modal-title">🖼️ Ajustar avatar</h3>
       <canvas id="cropCanvas" width="300" height="300"></canvas>
       <input id="cropZoom" type="range" min="0.5" max="2" step="0.01" value="1">
-      <div class="modal-actions">
-        <button class="ghost" id="cropCancel">Cancelar</button>
-        <button id="cropSave">Salvar</button>
-      </div>
+      <div class="modal-actions"><button class="ghost" id="cropCancel">Cancelar</button><button id="cropSave">Salvar</button></div>
     </div>
   </dialog>
 
-  <script>window.APP_VERSION="{{ version|default('v21.2') }}";</script>
+  <!-- Marcar assistido (com data) -->
+  <dialog class="modal light" id="watchModal">
+    <div class="modal-inner">
+      <h3 class="modal-title">📅 Registrar visualização</h3>
+      <input id="watchWhen" type="datetime-local">
+      <div class="modal-actions"><button class="ghost" id="watchCancel">Cancelar</button><button id="watchSave">Salvar</button></div>
+    </div>
+  </dialog>
+
+  <!-- Corrigir ligação TMDB -->
+  <dialog class="modal light" id="relinkModal">
+    <div class="modal-inner">
+      <h3 class="modal-title">🛠 Corrigir ligação TMDB</h3>
+      <input id="relinkQuery" type="text" placeholder="Buscar no TMDB…">
+      <ul id="relinkResults" class="results" style="position:static;max-height:320px"></ul>
+      <div class="modal-actions"><button class="ghost" id="relinkCancel">Fechar</button></div>
+    </div>
+  </dialog>
+
+  <!-- Detalhes do filme -->
+  <dialog class="modal light" id="detailsModal">
+    <div class="modal-inner">
+      <h3 class="modal-title" id="dTitle">Detalhes</h3>
+      <img id="dPoster" alt="poster" style="width:120px;border-radius:12px">
+      <p id="dInfo" class="hint"></p>
+      <p id="dOverview"></p>
+      <div class="modal-actions"><button class="ghost" id="dClose">Fechar</button></div>
+    </div>
+  </dialog>
+
+  <script>window.APP_VERSION="{{ version|default('v21.3') }}";</script>
   <script src="/static/js/app.js" defer></script>
 </body>
 </html>
