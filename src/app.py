@@ -206,7 +206,29 @@ def page_app():
     if "user" not in session:
         return redirect(url_for("page_login"))
     return render_template("app.html", version="v21.0", user=session["user"])
+# --- ROTA TEMPORÁRIA: criar usuário admin inicial (REMOVER DEPOIS) ---
+@app.get("/init-admin")
+def init_admin():
+    # simples proteção: exige query ?key=SECRET_KEY
+    key = request.args.get("key", "")
+    if key != SECRET_KEY:
+        return "forbidden", 403
 
+    import hashlib
+    username = "rodrigo"
+    name = "Rodrigo Rocha Lima"
+    # sha256 de '530431'
+    password_hash = "bd6523840ddb736ee5df08c6977c5da5"
+
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT id FROM users WHERE username=:u"), {"u": username}).fetchone()
+        if row:
+            return "ok: usuário já existia", 200
+        conn.execute(
+            text("INSERT INTO users (username, name, password_hash) VALUES (:u,:n,:p)"),
+            {"u": username, "n": name, "p": password_hash},
+        )
+    return "ok: usuário criado", 200
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
