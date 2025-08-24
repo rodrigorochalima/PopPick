@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POPPIC • Login</title>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#d4af37">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script defer src="{{ url_for('static', filename='js/login.js') }}"></script>
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <h1 class="logo">🍿🎬 POPPIC</h1>
+    <p class="version">{{ version }}</p>
+    <form id="loginForm" class="login-form">
+      <label>Usuário <input id="username" required placeholder="rodrigo"></label>
+      <label>Senha
+        <div class="password-wrap">
+          <input id="password" type="password" required placeholder="530431">
+          <button type="button" id="togglePass" aria-label="Ver/ocultar senha">👁️</button>
+        </div>
+      </label>
+      <button class="primary" type="submit">Entrar</button>
+      <p class="made-with" aria-hidden="true" style="display:none;">Made with Manus</p>
+    </form>
+  </main>
+  <script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
+  </script>
+</body>
+</html>
