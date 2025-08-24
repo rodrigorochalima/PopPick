@@ -3,102 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>POPPIC • App</title>
+  <title>POPPIC</title>
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#d4af37">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
 </head>
-<body>
+<body class="app-body">
   <header class="app-header">
     <div class="brand">
-      <span class="logo">🍿🎬 POPPIC</span>
+      <span class="logo">🍿🎬 <strong>POPPIC</strong></span>
       <span class="version">{{ version }}</span>
     </div>
     <nav class="top-actions">
-      <span class="user">{{ user.name }}</span>
-      <button id="gotoAdmin" class="ghost">Administração</button>
+      <span class="user" title="Usuário logado">{{ user.name }}</span>
+      <button id="accountBtn" class="ghost">Conta</button>
+      <button id="backupBtn" class="ghost">Backup</button>
+      <button id="restoreBtn" class="ghost">Restore</button>
       <button id="logoutBtn" class="danger">Sair</button>
     </nav>
   </header>
 
-  <main class="app-main">
-    <section class="toolbar">
-      <div class="tabs">
-        <button class="tab active" data-tab="filmes">Filmes</button>
-        <button class="tab" data-tab="admin">Administração</button>
-      </div>
+  <section class="toolbar">
+    <input id="search" placeholder="Buscar filme..." />
+    <select id="filter">
+      <option value="todos">Todos</option>
+      <option value="disney">Disney</option>
+      <option value="universal">Universal</option>
+      <option value="nasa">NASA</option>
+    </select>
+    <button id="shuffleBtn" class="ghost">Sortear</button>
+    <button id="addBtn" class="primary">Adicionar filme</button>
+  </section>
 
-      <div class="filters" data-section="filmes">
-        <div class="filter-group">
-          <button class="chip active" data-filter="todos">Todos</button>
-          <button class="chip" data-filter="disney">Disney</button>
-          <button class="chip" data-filter="universal">Universal</button>
-          <button class="chip" data-filter="nasa">NASA</button>
-        </div>
-        <div class="search-group">
-          <input id="search" placeholder="Buscar..." />
-          <button id="randomBtn" class="ghost">Sortear Filme</button>
-          <button id="addBtn" class="primary">Adicionar Filme</button>
-        </div>
-      </div>
-    </section>
+  <main class="grid" id="grid" aria-live="polite"></main>
 
-    <section id="gridSection" class="grid-section" data-section="filmes">
-      <div id="moviesGrid" class="grid"></div>
-    </section>
-
-    <section id="adminSection" class="admin-section hidden" data-section="admin">
-      <h2>Administração</h2>
-      <div class="admin-cards">
-        <div class="card">
-          <h3>Estatísticas</h3>
-          <ul id="statsList" class="stats"></ul>
-        </div>
-        <div class="card">
-          <h3>Backup/Restore</h3>
-          <button id="backupBtn" class="ghost">Baixar backup (JSON)</button>
-          <label class="file">
-            <input type="file" id="restoreFile" accept="application/json">
-            <span class="ghost">Restaurar de JSON</span>
-          </label>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <dialog id="movieModal" class="modal">
-    <form method="dialog" class="modal-inner">
-      <h3 id="modalTitle"></h3>
-      <div id="modalContent"></div>
-      <menu class="modal-actions">
-        <button value="cancel" class="ghost">Fechar</button>
-      </menu>
-    </form>
-  </dialog>
-
+  <!-- Modal: adicionar filme -->
   <dialog id="addModal" class="modal">
     <form method="dialog" class="modal-inner" id="addForm">
-      <h3>Adicionar Filme</h3>
-      <label>Título <input name="title" required /></label>
-      <label>Ano <input name="year" type="number" min="1900" max="2100" required /></label>
+      <h3>Novo filme</h3>
+      <label>Título <input name="title" id="mTitle" required></label>
+      <label>Ano <input name="year" id="mYear" type="number" required></label>
       <label>Estúdio
-        <select name="studio" required>
+        <select name="studio" id="mStudio" required>
           <option value="disney">Disney</option>
           <option value="universal">Universal</option>
           <option value="nasa">NASA</option>
         </select>
       </label>
-      <label>ID do TMDB (opcional) <input name="tmdbId" type="number" /></label>
+      <label>TMDB ID (opcional) <input name="tmdb" id="mTmdb" type="number"></label>
       <menu class="modal-actions">
         <button value="cancel" class="ghost">Cancelar</button>
-        <button id="saveMovie" class="primary" value="default">Salvar</button>
+        <button class="primary" id="saveMovie">Salvar</button>
       </menu>
     </form>
   </dialog>
 
+  <!-- Modal: conta -->
+  <dialog id="accountModal" class="modal">
+    <form method="dialog" class="modal-inner" id="accountForm">
+      <h3>Minha conta</h3>
+      <label>Nome <input name="name" id="accName" required /></label>
+      <label>Usuário <input name="username" id="accUser" required /></label>
+      <label>Pergunta secreta (opcional) <input name="q" id="accQ" /></label>
+      <label>Resposta secreta (opcional) <input name="a" id="accA" /></label>
+      <hr/>
+      <label>Senha atual <input type="password" id="oldPass" /></label>
+      <label>Nova senha <input type="password" id="newPass" /></label>
+      <menu class="modal-actions">
+        <button value="cancel" class="ghost">Fechar</button>
+        <button id="saveAccount" class="primary" value="default">Salvar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <template id="cardTpl">
+    <article class="card">
+      <div class="poster-wrap">
+        <img class="poster" alt="Poster">
+        <span class="badge views"></span>
+      </div>
+      <h4 class="title"></h4>
+      <p class="meta"></p>
+      <div class="actions">
+        <button class="watchBtn">Assistido</button>
+        <div class="rateBox">
+          <button class="rateBtn" data-score="1">1</button>
+          <button class="rateBtn" data-score="2">2</button>
+          <button class="rateBtn" data-score="3">3</button>
+          <button class="rateBtn" data-score="4">4</button>
+          <button class="rateBtn" data-score="5">5</button>
+          <button class="rateBtn" data-score="6">6</button>
+          <button class="rateBtn" data-score="7">7</button>
+          <button class="rateBtn" data-score="8">8</button>
+          <button class="rateBtn" data-score="9">9</button>
+          <button class="rateBtn" data-score="10">10</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
   <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
+    }
   </script>
 </body>
 </html>
