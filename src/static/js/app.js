@@ -1,179 +1,199 @@
 (function(){
-  const tabs = document.querySelectorAll('.tab');
-  const sections = document.querySelectorAll('[data-section]');
-  const filterChips = document.querySelectorAll('.chip');
+
+  // elementos
+  const grid = document.getElementById('grid');
   const search = document.getElementById('search');
-  const grid = document.getElementById('moviesGrid');
-  const modal = document.getElementById('movieModal');
-  const modalContent = document.getElementById('modalContent');
-  const modalTitle = document.getElementById('modalTitle');
-  const addModal = document.getElementById('addModal');
+  const filter = document.getElementById('filter');
+  const shuffleBtn = document.getElementById('shuffleBtn');
   const addBtn = document.getElementById('addBtn');
-  const randomBtn = document.getElementById('randomBtn');
+  const addModal = document.getElementById('addModal');
+  const saveMovie = document.getElementById('saveMovie');
   const logoutBtn = document.getElementById('logoutBtn');
   const backupBtn = document.getElementById('backupBtn');
-  const restoreFile = document.getElementById('restoreFile');
+  const restoreBtn = document.getElementById('restoreBtn');
 
-  tabs.forEach(t => t.addEventListener('click', () => {
-    tabs.forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    const tab = t.dataset.tab;
-    sections.forEach(s => s.classList.toggle('hidden', s.dataset.section !== tab));
-    if (tab === 'admin') renderStats();
-  }));
+  const accountBtn = document.getElementById('accountBtn');
+  const accountModal = document.getElementById('accountModal');
+  const saveAccount = document.getElementById('saveAccount');
 
-  filterChips.forEach(c => c.addEventListener('click', () => {
-    filterChips.forEach(x=>x.classList.remove('active'));
-    c.classList.add('active');
-    render();
-  }));
+  // helpers
+  function h(tag, attrs={}, ...children){
+    const el = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v])=> el.setAttribute(k,v));
+    children.forEach(c => {
+      if (c==null) return;
+      if (typeof c === 'string') el.appendChild(document.createTextNode(c));
+      else el.appendChild(c);
+    });
+    return el;
+  }
 
-  if (search) search.addEventListener('input', render);
-
-  addBtn.addEventListener('click', () => addModal.showModal());
-  document.getElementById('saveMovie').addEventListener('click', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(document.getElementById('addForm'));
-    const payload = {
-      title: fd.get('title').trim(),
-      year: parseInt(fd.get('year'),10),
-      studio: fd.get('studio'),
-      tmdbId: parseInt(fd.get('tmdbId')||'0',10) || null
-    };
-    const r = await fetch('/api/movies', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  // carregar lista
+  async function load(){
+    const q = search ? (search.value || '').trim() : '';
+    const f = filter ? (filter.value || 'todos') : 'todos';
+    const url = `/api/movies?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(f)}`;
+    const r = await fetch(url);
     const data = await r.json();
-    if (!data.ok) return alert('Falha ao adicionar');
+    if (!data.ok) { grid.innerHTML = '<p>Erro ao carregar.</p>'; return; }
+    render(data.items);
+  }
+
+  function render(items){
+    grid.innerHTML = '';
+    if (!items.length){
+      grid.appendChild(h('p',{},'Nenhum item.'));
+      return;
+    }
+    const tpl = document.getElementById('cardTpl');
+    items.forEach(m => {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.querySelector('.title').textContent = m.title;
+      node.querySelector('.meta').textContent = `${m.year || ''} • ${m.studio || ''} ${m.rating?('• Nota '+m.rating):''}`;
+      node.querySelector('.views').textContent = (m.views||0);
+
+      // poster (se tiver TMDB)
+      const img = node.querySelector('.poster');
+      img.src = '/static/img/placeholder.png';
+      if (m.tmdb_id){
+        fetch(`/api/tmdb/poster/${m.tmdb_id}`).then(x=>x.json()).then(res=>{
+          if (res.ok && res.url) img.src = res.url;
+        }).catch(()=>{});
+      }
+
+      // Assistido / views
+      const watchBtn = node.querySelector('.watchBtn');
+      watchBtn.textContent = m.watched ? 'Assistido ✔' : 'Marcar assistido';
+      watchBtn.addEventListener('click', async ()=>{
+        const r = await fetch(`/api/movies/${m.id}/toggle_watch`, {method:'POST'});
+        const d = await r.json();
+        if (!d.ok) return alert('Erro');
+        load();
+      });
+
+      // rating (só se já assistiu)
+      node.querySelectorAll('.rateBtn').forEach(btn=>{
+        btn.disabled = !m.watched;
+        btn.addEventListener('click', async ()=>{
+          const score = Number(btn.dataset.score);
+          const r = await fetch(`/api/movies/${m.id}/rate`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ rating: score })
+          });
+          const d = await r.json();
+          if (!d.ok) return alert(d.error || 'Erro ao avaliar');
+          load();
+        });
+      });
+
+      grid.appendChild(node);
+    });
+  }
+
+  // busca/ filtro
+  if (search) search.addEventListener('input', ()=>{ load(); });
+  if (filter) filter.addEventListener('change', ()=>{ load(); });
+
+  // sortear
+  if (shuffleBtn) shuffleBtn.addEventListener('click', ()=>{
+    const cards = Array.from(grid.querySelectorAll('.card'));
+    if (!cards.length) return;
+    const idx = Math.floor(Math.random()*cards.length);
+    cards[idx].scrollIntoView({behavior:'smooth', block:'center'});
+    cards[idx].classList.add('pulse');
+    setTimeout(()=>cards[idx].classList.remove('pulse'), 1200);
+  });
+
+  // adicionar filme
+  if (addBtn) addBtn.addEventListener('click', ()=> addModal.showModal());
+  if (saveMovie) saveMovie.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const title = document.getElementById('mTitle').value.trim();
+    const year = document.getElementById('mYear').value.trim();
+    const studio = document.getElementById('mStudio').value;
+    const tmdbId = document.getElementById('mTmdb').value.trim();
+    const r = await fetch('/api/movies', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ title, year, studio, tmdbId })
+    });
+    const d = await r.json();
+    if (!d.ok) return alert('Erro ao salvar');
     addModal.close();
-    render();
+    document.getElementById('mTitle').value = '';
+    document.getElementById('mYear').value = '';
+    document.getElementById('mTmdb').value = '';
+    load();
   });
 
-  randomBtn.addEventListener('click', async () => {
-    const list = window._movies || [];
-    if (!list.length) return alert('Nenhum filme');
-    const pick = list[Math.floor(Math.random()*list.length)];
-    openMovie(pick);
+  // backup
+  if (backupBtn) backupBtn.addEventListener('click', ()=>{
+    window.open('/api/admin/backup','_blank');
   });
 
-  logoutBtn.addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method:'POST' });
+  // restore (pede JSON)
+  if (restoreBtn) restoreBtn.addEventListener('click', async ()=>{
+    const text = prompt('Cole aqui o JSON do backup para restaurar:');
+    if (!text) return;
+    try {
+      const payload = JSON.parse(text);
+      const r = await fetch('/api/admin/restore', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const d = await r.json();
+      if (!d.ok) return alert('Falha ao restaurar');
+      alert('Restaurado com sucesso');
+      load();
+    } catch(e){ alert('JSON inválido'); }
+  });
+
+  // conta
+  if (accountBtn) accountBtn.addEventListener('click', ()=>{
+    // preenche nome atual (renderizado no header) e deixa username para o usuário informar
+    const nameEl = document.querySelector('.user');
+    if (nameEl) document.getElementById('accName').value = nameEl.textContent.trim();
+    accountModal.showModal();
+  });
+
+  if (saveAccount) saveAccount.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('accName').value.trim();
+    const username = document.getElementById('accUser').value.trim();
+    const secret_question = document.getElementById('accQ').value.trim();
+    const secret_answer = document.getElementById('accA').value.trim();
+    const old_password = document.getElementById('oldPass').value.trim();
+    const new_password = document.getElementById('newPass').value.trim();
+
+    // 1) perfil
+    const r1 = await fetch('/api/account/update_profile', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, username, secret_question, secret_answer })
+    });
+    const d1 = await r1.json();
+    if (!d1.ok) return alert(d1.error || 'Falha ao salvar perfil');
+
+    // 2) senha (opcional)
+    if (old_password && new_password){
+      const r2 = await fetch('/api/account/change_password', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ old_password, new_password })
+      });
+      const d2 = await r2.json();
+      if (!d2.ok) return alert(d2.error || 'Falha ao trocar senha');
+    }
+
+    alert('Dados salvos');
+    location.reload();
+  });
+
+  // logout
+  if (logoutBtn) logoutBtn.addEventListener('click', async ()=>{
+    await fetch('/api/auth/logout', {method:'POST'});
     location.href = '/';
   });
 
-  backupBtn.addEventListener('click', () => {
-    window.location.href = '/api/admin/backup';
-  });
-  restoreFile.addEventListener('change', async (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const text = await f.text();
-    try{
-      const payload = JSON.parse(text);
-      const r = await fetch('/api/admin/restore', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      const data = await r.json();
-      if (!data.ok) throw new Error('Falha no restore');
-      alert('Restauração concluída');
-      render();
-    }catch(err){ alert('Arquivo inválido'); }
-  });
+  // start
+  load();
 
-  async function fetchMovies(){
-    const activeFilter = document.querySelector('.chip.active').dataset.filter;
-    const q = (document.getElementById('search').value || '').trim();
-    const r = await fetch(`/api/movies?filter=${encodeURIComponent(activeFilter)}&q=${encodeURIComponent(q)}`);
-    const data = await r.json();
-    window._movies = data.items || [];
-  }
-
-  async function render(){
-    await fetchMovies();
-    grid.innerHTML = '';
-    for (const m of window._movies){
-      const card = document.createElement('div');
-      card.className = 'card movie';
-
-      const img = document.createElement('img');
-      img.className = 'thumb'; img.alt = m.title; img.src = '';
-      if (m.title.toLowerCase().includes('nemo') && (m.views||0) >= 4) card.classList.add('gold-border');
-      posterFor(m.tmdb_id).then(url => {
-        img.src = url || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 300 450%22><rect width=%22300%22 height=%22450%22 fill=%22%23111114%22/><text x=%22150%22 y=%22225%22 text-anchor=%22middle%22 fill=%22%23a1a1aa%22 font-size=%2220%22>Sem pôster</text></svg>';
-      });
-
-      const badge = document.createElement('span'); badge.className='badge'; badge.textContent = (m.studio||'').toUpperCase();
-      const count = document.createElement('span'); count.className='count'; count.textContent = `👁️ ${m.views||0}`;
-
-      const meta = document.createElement('div'); meta.className='meta';
-      meta.innerHTML = `<div class="title">${m.title}</div><small>${m.year||''}</small>`;
-
-      const rating = document.createElement('div'); rating.className='rating';
-      const watched = !!m.watched;
-      for (let i=1;i<=10;i++){
-        const s = document.createElement('span');
-        s.textContent = i <= (m.rating||0) ? '★' : '☆';
-        s.className = 'star' + (watched ? '' : ' disabled');
-        s.dataset.value = i;
-        s.addEventListener('click', async () => {
-          if (!watched) return;
-          const r = await fetch(`/api/movies/${m.id}/rate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating:i }) });
-          const data = await r.json();
-          if (!data.ok) return alert(data.error||'Falha na avaliação');
-          render();
-        });
-        rating.appendChild(s);
-      }
-      const watchBtn = document.createElement('button');
-      watchBtn.className = 'ghost';
-      watchBtn.textContent = watched ? 'Marcar como não assistido' : 'Marcar como assistido';
-      watchBtn.addEventListener('click', async () => {
-        const r = await fetch(`/api/movies/${m.id}/toggle_watch`, { method:'POST' });
-        const data = await r.json();
-        if (!data.ok) return alert('Falha');
-        render();
-      });
-      meta.appendChild(rating); meta.appendChild(watchBtn);
-
-      card.appendChild(img); card.appendChild(badge); card.appendChild(count); card.appendChild(meta);
-      card.addEventListener('click', (ev) => {
-        if (ev.target.classList.contains('star') || ev.target === watchBtn) return;
-        openMovie(m);
-      });
-      grid.appendChild(card);
-    }
-    renderStats();
-  }
-
-  function openMovie(m){
-    document.getElementById('modalTitle').textContent = m.title;
-    document.getElementById('modalContent').innerHTML = `
-      <p><strong>Ano:</strong> ${m.year||''}</p>
-      <p><strong>Estúdio:</strong> ${(m.studio||'').toUpperCase()}</p>
-      <p><strong>Assistido:</strong> ${m.watched ? 'Sim' : 'Não'}</p>
-      <p><strong>Visualizações:</strong> ${m.views||0}</p>
-      <p><strong>Nota:</strong> ${m.rating ?? '—'}</p>
-    `;
-    movieModal.showModal();
-  }
-
-  async function renderStats(){
-    const list = window._movies || [];
-    const total = list.length;
-    const watched = list.filter(m=>m.watched).length;
-    const avg = (list.reduce((acc,m)=>acc+(m.rating||0),0) / Math.max(1,watched)).toFixed(2);
-    document.getElementById('statsList').innerHTML = `
-      <li>Total de filmes: ${total}</li>
-      <li>Assistidos: ${watched}</li>
-      <li>Média das notas: ${isNaN(avg)?'—':avg}</li>
-      <li>Tempo de carregamento alvo: &lt; 2s</li>
-    `;
-  }
-
-  async function posterFor(tmdbId){
-    if (!tmdbId) return null;
-    try{
-      const r = await fetch(`/api/tmdb/poster/${tmdbId}`);
-      const data = await r.json();
-      return data.url || null;
-    }catch(e){ return null; }
-  }
-
-  render();
 })();
