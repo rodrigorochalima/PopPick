@@ -22,9 +22,29 @@
         </div>
       </label>
       <button class="primary" type="submit">Entrar</button>
-      <p class="made-with" aria-hidden="true" style="display:none;">Made with Manus</p>
+      <button class="ghost" type="button" id="forgotBtn">Esqueci a senha</button>
     </form>
   </main>
+
+  <dialog id="forgotDlg" class="modal">
+    <form method="dialog" class="modal-inner" id="forgotForm">
+      <h3>Recuperar senha</h3>
+      <div id="forgotStep1">
+        <label>Usuário <input id="fUser" required></label>
+        <button class="primary" id="askQuestion">Continuar</button>
+      </div>
+      <div id="forgotStep2" class="hidden">
+        <p id="secretQuestion"></p>
+        <label>Resposta <input id="secretAnswer" required></label>
+        <label>Nova senha <input id="newPassword" type="password" required></label>
+        <menu class="modal-actions">
+          <button class="ghost" value="cancel">Cancelar</button>
+          <button class="primary" id="doReset">Salvar nova senha</button>
+        </menu>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}').catch(()=>{});
   </script>
