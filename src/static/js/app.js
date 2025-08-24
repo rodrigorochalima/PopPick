@@ -35,6 +35,7 @@
     const f = filter ? (filter.value || 'todos') : 'todos';
     const url = `/api/movies?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(f)}`;
     const r = await fetch(url);
+    if (r.status === 401) { location.href = '/'; return; }
     const data = await r.json();
     if (!data.ok) { grid.innerHTML = '<p>Erro ao carregar.</p>'; return; }
     render(data.items);
@@ -53,11 +54,17 @@
       node.querySelector('.site').textContent = m.site_index!=null ? m.site_index : 'x';
 
       const img = node.querySelector('.poster');
-      img.src = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : '/static/img/placeholder.png';
+      if (m.poster_path){
+        const rel = m.poster_path.startsWith('/') ? m.poster_path.substring(1) : m.poster_path;
+        img.src = `/img/tmdb/w342/${rel}`;
+      } else {
+        img.src = '/static/img/placeholder.png';
+      }
 
       // Assistido
       const watchBtn = node.querySelector('.watchBtn');
       watchBtn.textContent = m.watched ? 'Assistido ✔' : 'Marcar assistido';
+      watchBtn.classList.toggle('ok', !!m.watched);
       watchBtn.addEventListener('click', async ()=>{
         const r = await fetch(`/api/movies/${m.id}/toggle_watch`, {method:'POST'});
         const d = await r.json();
@@ -75,7 +82,7 @@
       }
       paint(m.my_rating||0);
       stars.forEach(btn=>{
-        btn.disabled = !m.watched; // só se assistiu
+        btn.disabled = !m.watched; // só habilita após assistir
         btn.addEventListener('click', async ()=>{
           const score = Number(btn.dataset.score);
           const r = await fetch(`/api/movies/${m.id}/rate`, {
@@ -97,11 +104,9 @@
 
   // ======== CONTA ========
   if (accountBtn) accountBtn.addEventListener('click', ()=>{
-    // Prefill de nome (pego do header) e avatar atual
     const nameEl = document.querySelector('.user');
     if (nameEl) document.getElementById('accName').value = nameEl.textContent.trim();
-    // username o usuário preenche manualmente (não renderizamos no HTML)
-    if (topAvatar && topAvatar.src) accAvatarPreview.src = topAvatar.src;
+    if (topAvatar && topAvatar.src){ accAvatarPreview.src = topAvatar.src; accAvatarPreview.style.display = ''; }
     accountModal.showModal();
   });
 
@@ -128,6 +133,9 @@
       });
       const d2 = await r2.json();
       if (!d2.ok) return alert(d2.error || 'Falha ao trocar senha');
+      alert('Senha alterada. Faça login novamente.');
+      location.href = '/';
+      return;
     }
 
     alert('Dados salvos');
@@ -184,7 +192,7 @@
     const reader = new FileReader();
     reader.onload = e=>{
       imgObj = new Image();
-      imgObj.onload = ()=>{ imgX=150; imgY=150; cropZoom.value=1; drawCrop(); accAvatarPreview.src = e.target.result; };
+      imgObj.onload = ()=>{ imgX=150; imgY=150; cropZoom.value=1; drawCrop(); accAvatarPreview.src = e.target.result; accAvatarPreview.style.display=''; };
       imgObj.src = e.target.result;
     };
     reader.readAsDataURL(f);
@@ -199,7 +207,6 @@
 
   if (cropCancel) cropCancel.addEventListener('click', ()=> cropModal.close());
   if (cropSave) cropSave.addEventListener('click', async ()=>{
-    // recorta o círculo em PNG
     const dataUrl = cropCanvas.toDataURL('image/png');
     const r = await fetch('/api/account/avatar', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -209,7 +216,7 @@
     if (!d.ok) return alert('Falha ao salvar avatar');
     cropModal.close();
     if (topAvatar){ topAvatar.src = dataUrl; topAvatar.style.display=''; }
-    if (accAvatarPreview){ accAvatarPreview.src = dataUrl; }
+    if (accAvatarPreview){ accAvatarPreview.src = dataUrl; accAvatarPreview.style.display=''; }
     alert('Avatar atualizado!');
   });
 
@@ -217,6 +224,7 @@
   let tmdbTimer = null;
   async function doSearchTMDB(q){
     const r = await fetch(`/api/tmdb/search?q=${encodeURIComponent(q)}`);
+    if (r.status === 401) { location.href = '/'; return; }
     const data = await r.json();
     tmdbResults.innerHTML = '';
     if (!data.ok) {
@@ -225,7 +233,8 @@
     }
     data.results.forEach(item=>{
       const li = document.createElement('li');
-      li.innerHTML = `<img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w92'+item.poster_path : '/static/img/placeholder.png'}"><span>${item.title} (${item.year||'?'})</span><em>${(item.rating??'') && Number(item.rating).toFixed(1)}</em>`;
+      const rel = item.poster_path ? (item.poster_path.startsWith('/') ? item.poster_path.substring(1) : item.poster_path) : '';
+      li.innerHTML = `<img src="${rel ? '/img/tmdb/w92/'+rel : '/static/img/placeholder.png'}"><span>${item.title} (${item.year||'?'})</span><em>${(item.rating??'') && Number(item.rating).toFixed(1)}</em>`;
       li.addEventListener('click', async ()=>{
         const studio = tmdbStudio.value || '';
         const r2 = await fetch('/api/movies/from_tmdb', {
