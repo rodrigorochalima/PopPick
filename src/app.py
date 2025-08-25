@@ -3,7 +3,17 @@ from flask import Flask, request, jsonify, render_template, redirect, session, s
 from flask_cors import CORS
 from sqlalchemy import create_engine, text
 import requests
-from config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY
+import os, json, base64, io, datetime as dt
+from flask import Flask, request, jsonify, render_template, redirect, session, send_file
+from flask_cors import CORS
+from sqlalchemy import create_engine, text
+import requests
+
+# Import compatível com execução local (python src/app.py) e via package (waitress src.app:app)
+try:
+    from .config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY  # quando importado como package: src.config
+except ImportError:
+    from config import DATABASE_URL, SECRET_KEY, TMDB_API_KEY    # quando executado direto: python src/app.py
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = SECRET_KEY or "dev-key"
